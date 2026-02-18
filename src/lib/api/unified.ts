@@ -6,11 +6,18 @@ import {
 } from "./smartlead";
 import type {
   UnifiedCampaign,
+  CampaignCategory,
   DashboardStats,
   HeyReachCampaign,
   HeyReachDayStats,
   SmartleadCampaign,
 } from "@/lib/types";
+
+const DIRECT_MAIL_RE = /direct\s*mail/i;
+
+function categorize(name: string): CampaignCategory {
+  return DIRECT_MAIL_RE.test(name) ? "direct-mail" : "email";
+}
 
 // ─── Normalizers ─────────────────────────────────────────────────────────────
 
@@ -34,6 +41,7 @@ function normalizeSmartleadCampaign(c: SmartleadCampaign): UnifiedCampaign {
     name: c.name,
     status: c.status,
     createdAt: c.created_at,
+    category: categorize(c.name),
   };
 }
 

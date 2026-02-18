@@ -92,6 +92,8 @@ export interface SmartleadLeadCategoryResponse {
 
 // ─── Unified / Dashboard Types ───────────────────────────────────────────────
 
+export type CampaignCategory = "email" | "direct-mail";
+
 export interface UnifiedCampaign {
   id: string;          // prefixed: "hr_123" or "sl_456"
   platformId: number;
@@ -99,6 +101,7 @@ export interface UnifiedCampaign {
   name: string;
   status: string;
   createdAt: string;
+  category?: CampaignCategory;
   // HeyReach-specific: lead progress stats
   leadStats?: HeyReachProgressStats;
 }

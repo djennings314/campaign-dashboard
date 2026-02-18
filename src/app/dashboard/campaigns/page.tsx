@@ -11,15 +11,24 @@ import { CampaignTable } from "@/components/campaign-table";
 import { useCampaigns } from "@/lib/hooks";
 import type { UnifiedCampaign } from "@/lib/types";
 
+const categoryFilters = [
+  { label: "All", value: "all" },
+  { label: "Email Campaigns", value: "email" },
+  { label: "Direct Mail", value: "direct-mail" },
+] as const;
+
 function PlatformTab({
   campaigns,
   loading,
+  showCategoryFilter,
 }: {
   campaigns: UnifiedCampaign[];
   loading: boolean;
+  showCategoryFilter?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const statuses = useMemo(() => {
     const set = new Set(campaigns.map((c) => c.status));
@@ -37,9 +46,12 @@ function PlatformTab({
       if (activeStatus !== "all" && c.status !== activeStatus) {
         return false;
       }
+      if (categoryFilter !== "all" && c.category !== categoryFilter) {
+        return false;
+      }
       return true;
     });
-  }, [campaigns, search, activeStatus]);
+  }, [campaigns, search, activeStatus, categoryFilter]);
 
   return (
     <div className="space-y-4">
@@ -54,6 +66,20 @@ function PlatformTab({
               className="pl-9"
             />
           </div>
+          {showCategoryFilter && (
+            <div className="flex items-center gap-1">
+              {categoryFilters.map((cf) => (
+                <Button
+                  key={cf.value}
+                  variant={categoryFilter === cf.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCategoryFilter(cf.value)}
+                >
+                  {cf.label}
+                </Button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-1">
             {statuses.map((s) => (
               <Badge
@@ -137,7 +163,11 @@ export default function CampaignsPage() {
           <PlatformTab campaigns={heyreachCampaigns} loading={loading} />
         </TabsContent>
         <TabsContent value="smartlead">
-          <PlatformTab campaigns={smartleadCampaigns} loading={loading} />
+          <PlatformTab
+            campaigns={smartleadCampaigns}
+            loading={loading}
+            showCategoryFilter
+          />
         </TabsContent>
       </Tabs>
     </div>
