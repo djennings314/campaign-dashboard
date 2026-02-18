@@ -36,8 +36,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: {} });
   }
 
-  // Cap at 25 per request to avoid rate limits
-  const batch = ids.slice(0, 25);
+  // Cap at 5 per request to stay within Vercel's 10s function timeout
+  const batch = ids.slice(0, 5);
   const results = await Promise.allSettled(
     batch.map(async (uid) => {
       const numId = Number(uid.replace("sl_", ""));

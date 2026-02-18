@@ -80,7 +80,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     const controller = new AbortController();
 
     async function fetchAllStats() {
-      const BATCH = 10;
+      const BATCH = 5;
       const DELAY_MS = 1500;
 
       for (let i = 0; i < slIds.length; i += BATCH) {
