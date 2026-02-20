@@ -2,13 +2,52 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, Linkedin, Mail } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, ChevronRight, Linkedin, Mail } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useCampaigns } from "@/lib/hooks";
 import type { UnifiedCampaign, Platform } from "@/lib/types";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function statusVariant(
+  status: string
+): "default" | "secondary" | "destructive" | "outline" {
+  const s = status.toUpperCase();
+  if (s === "IN_PROGRESS" || s === "ACTIVE") return "default";
+  if (s === "PAUSED" || s === "DRAFT" || s === "DRAFTED") return "secondary";
+  if (s === "FAILED" || s === "CANCELED" || s === "STOPPED")
+    return "destructive";
+  return "outline";
+}
+
+function platformLabel(platform: string) {
+  return platform === "heyreach" ? "HeyReach" : "Smartlead";
+}
+
+function formatDate(dateStr: string) {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+// ─── Client Group ─────────────────────────────────────────────────────────────
 
 interface ClientGroup {
   name: string;
@@ -17,6 +56,9 @@ interface ClientGroup {
   activeCampaigns: number;
   pausedCampaigns: number;
   totalLeads: number;
+  totalPending: number;
+  totalInProgress: number;
+  totalFinished: number;
 }
 
 function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
@@ -33,6 +75,9 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
     let activeCampaigns = 0;
     let pausedCampaigns = 0;
     let totalLeads = 0;
+    let totalPending = 0;
+    let totalInProgress = 0;
+    let totalFinished = 0;
 
     for (const c of cList) {
       platformCounts[c.platform]++;
@@ -40,6 +85,9 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
       if (s === "IN_PROGRESS" || s === "ACTIVE") activeCampaigns++;
       if (s === "PAUSED") pausedCampaigns++;
       totalLeads += c.leadStats?.totalUsers ?? 0;
+      totalPending += c.leadStats?.totalUsersPending ?? 0;
+      totalInProgress += c.leadStats?.totalUsersInProgress ?? 0;
+      totalFinished += c.leadStats?.totalUsersFinished ?? 0;
     }
 
     groups.push({
@@ -49,12 +97,175 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
       activeCampaigns,
       pausedCampaigns,
       totalLeads,
+      totalPending,
+      totalInProgress,
+      totalFinished,
     });
   }
 
   groups.sort((a, b) => a.name.localeCompare(b.name));
   return groups;
 }
+
+// ─── Client Section ───────────────────────────────────────────────────────────
+
+function ClientSection({ group }: { group: ClientGroup }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasLeadStats = group.totalLeads > 0;
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      {/* Client header row */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="hover:bg-accent/50 flex w-full items-center gap-3 px-4 py-3 text-left transition-colors"
+      >
+        <ChevronRight
+          className={`h-4 w-4 shrink-0 transition-transform ${
+            expanded ? "rotate-90" : ""
+          }`}
+        />
+        <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="text-sm font-semibold">{group.name}</span>
+          <span className="text-muted-foreground text-xs">
+            {group.campaigns.length} campaign{group.campaigns.length !== 1 ? "s" : ""}
+          </span>
+          {group.platformCounts.heyreach > 0 && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <Linkedin className="h-3 w-3" />
+              {group.platformCounts.heyreach}
+            </Badge>
+          )}
+          {group.platformCounts.smartlead > 0 && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <Mail className="h-3 w-3" />
+              {group.platformCounts.smartlead}
+            </Badge>
+          )}
+          {group.activeCampaigns > 0 && (
+            <Badge variant="default" className="text-xs">
+              {group.activeCampaigns} active
+            </Badge>
+          )}
+          {group.pausedCampaigns > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {group.pausedCampaigns} paused
+            </Badge>
+          )}
+        </div>
+        {/* Summed stats on the right */}
+        <div className="hidden items-center gap-4 text-xs sm:flex">
+          {hasLeadStats && (
+            <>
+              <span className="font-medium" title="Total Leads">
+                {group.totalLeads.toLocaleString()} leads
+              </span>
+              <span className="text-yellow-600" title="Pending">
+                {group.totalPending.toLocaleString()} pending
+              </span>
+              <span className="text-blue-600" title="In Progress">
+                {group.totalInProgress.toLocaleString()} in prog
+              </span>
+              <span className="text-green-600" title="Finished">
+                {group.totalFinished.toLocaleString()} finished
+              </span>
+            </>
+          )}
+        </div>
+      </button>
+
+      {/* Expanded campaign table */}
+      {expanded && (
+        <div className="border-t">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Campaign</TableHead>
+                <TableHead>Platform</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Total Leads</TableHead>
+                <TableHead className="text-right">Pending</TableHead>
+                <TableHead className="text-right">In Progress</TableHead>
+                <TableHead className="text-right">Finished</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {group.campaigns.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell>
+                    <Link
+                      href={`/dashboard/campaigns/${c.id}`}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      {c.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {platformLabel(c.platform)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {c.leadStats?.totalUsers != null
+                      ? c.leadStats.totalUsers.toLocaleString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-yellow-600">
+                    {c.leadStats?.totalUsersPending != null
+                      ? c.leadStats.totalUsersPending.toLocaleString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-blue-600">
+                    {c.leadStats?.totalUsersInProgress != null
+                      ? c.leadStats.totalUsersInProgress.toLocaleString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-green-600">
+                    {c.leadStats?.totalUsersFinished != null
+                      ? c.leadStats.totalUsersFinished.toLocaleString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-muted-foreground text-sm">
+                      {formatDate(c.createdAt)}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {/* Totals row */}
+              {hasLeadStats && (
+                <TableRow className="bg-muted/50 font-semibold">
+                  <TableCell colSpan={3} className="text-right text-xs uppercase tracking-wide">
+                    Totals
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {group.totalLeads.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right text-yellow-600">
+                    {group.totalPending.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right text-blue-600">
+                    {group.totalInProgress.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right text-green-600">
+                    {group.totalFinished.toLocaleString()}
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
   const { campaigns, loading } = useCampaigns();
@@ -88,9 +299,9 @@ export default function ClientsPage() {
       </div>
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-36 w-full rounded-xl" />
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full rounded-lg" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -98,56 +309,13 @@ export default function ClientsPage() {
           No clients found.
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((group) => (
-            <Link
-              key={group.name}
-              href={`/dashboard/campaigns?client=${encodeURIComponent(group.name)}`}
-            >
-              <Card className="transition-shadow hover:shadow-md">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{group.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">
-                      {group.campaigns.length} campaign{group.campaigns.length !== 1 ? "s" : ""}
-                    </span>
-                    {group.platformCounts.heyreach > 0 && (
-                      <Badge variant="outline" className="gap-1 text-xs">
-                        <Linkedin className="h-3 w-3" />
-                        {group.platformCounts.heyreach}
-                      </Badge>
-                    )}
-                    {group.platformCounts.smartlead > 0 && (
-                      <Badge variant="outline" className="gap-1 text-xs">
-                        <Mail className="h-3 w-3" />
-                        {group.platformCounts.smartlead}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    {group.activeCampaigns > 0 && (
-                      <Badge variant="default" className="text-xs">
-                        {group.activeCampaigns} active
-                      </Badge>
-                    )}
-                    {group.pausedCampaigns > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        {group.pausedCampaigns} paused
-                      </Badge>
-                    )}
-                  </div>
-                  {group.totalLeads > 0 && (
-                    <p className="text-muted-foreground text-xs">
-                      {group.totalLeads.toLocaleString()} total leads
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="space-y-2 pt-4">
+            {filtered.map((group) => (
+              <ClientSection key={group.name} group={group} />
+            ))}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
