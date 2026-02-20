@@ -12,6 +12,7 @@ import type {
   HeyReachDayStats,
   SmartleadCampaign,
 } from "@/lib/types";
+import { extractClientName } from "@/lib/utils";
 
 const DIRECT_MAIL_RE = /direct\s*mail/i;
 
@@ -27,6 +28,7 @@ function normalizeHeyReachCampaign(c: HeyReachCampaign): UnifiedCampaign {
     platformId: c.id,
     platform: "heyreach",
     name: c.name,
+    client: extractClientName(c.name),
     status: c.status,
     createdAt: c.creationTime,
     leadStats: c.progressStats ?? undefined,
@@ -39,6 +41,7 @@ function normalizeSmartleadCampaign(c: SmartleadCampaign): UnifiedCampaign {
     platformId: c.id,
     platform: "smartlead",
     name: c.name,
+    client: extractClientName(c.name),
     status: c.status,
     createdAt: c.created_at,
     category: categorize(c.name),

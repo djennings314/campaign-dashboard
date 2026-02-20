@@ -99,6 +99,7 @@ export interface UnifiedCampaign {
   platformId: number;
   platform: Platform;
   name: string;
+  client: string;
   status: string;
   createdAt: string;
   category?: CampaignCategory;

@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import {
   LayoutDashboard,
   Megaphone,
+  Users,
   BarChart3,
   Settings,
   Moon,
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { name: "Campaigns", href: "/dashboard/campaigns", icon: Megaphone },
+  { name: "Clients", href: "/dashboard/clients", icon: Users },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

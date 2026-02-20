@@ -91,6 +91,17 @@ const columns: ColumnDef<UnifiedCampaign>[] = [
     ),
   },
   {
+    accessorKey: "client",
+    header: ({ column }) => (
+      <SortableHeader column={column}>Client</SortableHeader>
+    ),
+    cell: ({ row }) => (
+      <span className="text-muted-foreground text-sm">
+        {row.original.client}
+      </span>
+    ),
+  },
+  {
     accessorKey: "platform",
     header: ({ column }) => (
       <SortableHeader column={column}>Platform</SortableHeader>
@@ -405,6 +416,7 @@ export function CampaignTable({
 function columnDisplayName(id: string): string {
   const names: Record<string, string> = {
     name: "Campaign",
+    client: "Client",
     platform: "Platform",
     status: "Status",
     totalLeads: "Total Leads",
