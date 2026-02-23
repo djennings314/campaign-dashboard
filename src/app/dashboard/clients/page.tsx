@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCampaigns } from "@/lib/hooks";
-import type { UnifiedCampaign, Platform } from "@/lib/types";
+import type { UnifiedCampaign } from "@/lib/types";
 import { isActiveClient } from "@/lib/active-clients";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -38,10 +38,6 @@ function statusVariant(
   if (s === "FAILED" || s === "CANCELED" || s === "STOPPED")
     return "destructive";
   return "outline";
-}
-
-function platformLabel(platform: string) {
-  return platform === "heyreach" ? "HeyReach" : "Smartlead";
 }
 
 function formatDate(dateStr: string) {
@@ -61,7 +57,6 @@ function formatDate(dateStr: string) {
 interface ClientGroup {
   name: string;
   campaigns: UnifiedCampaign[];
-  platformCounts: Record<Platform, number>;
   activeCampaigns: number;
   pausedCampaigns: number;
   totalLeads: number;
@@ -80,7 +75,6 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
 
   const groups: ClientGroup[] = [];
   for (const [name, cList] of map) {
-    const platformCounts: Record<Platform, number> = { heyreach: 0, smartlead: 0 };
     let activeCampaigns = 0;
     let pausedCampaigns = 0;
     let totalLeads = 0;
@@ -89,7 +83,6 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
     let totalFinished = 0;
 
     for (const c of cList) {
-      platformCounts[c.platform]++;
       const s = c.status.toUpperCase();
       if (s === "IN_PROGRESS" || s === "ACTIVE") activeCampaigns++;
       if (s === "PAUSED") pausedCampaigns++;
@@ -102,7 +95,6 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
     groups.push({
       name,
       campaigns: cList,
-      platformCounts,
       activeCampaigns,
       pausedCampaigns,
       totalLeads,
@@ -143,129 +135,11 @@ function sortGroups(groups: ClientGroup[], field: SortField, desc: boolean): Cli
   });
 }
 
-// ─── Campaign Sub-Table ──────────────────────────────────────────────────────
-
-function CampaignSubTable({ campaigns }: { campaigns: UnifiedCampaign[] }) {
-  const totals = useMemo(() => {
-    let leads = 0, pending = 0, inProgress = 0, finished = 0;
-    for (const c of campaigns) {
-      leads += c.leadStats?.totalUsers ?? 0;
-      pending += c.leadStats?.totalUsersPending ?? 0;
-      inProgress += c.leadStats?.totalUsersInProgress ?? 0;
-      finished += c.leadStats?.totalUsersFinished ?? 0;
-    }
-    return { leads, pending, inProgress, finished };
-  }, [campaigns]);
-
-  const hasTotals = totals.leads > 0;
-
-  if (campaigns.length === 0) {
-    return (
-      <div className="text-muted-foreground flex h-16 items-center justify-center text-sm">
-        No campaigns on this platform.
-      </div>
-    );
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Campaign</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Total Leads</TableHead>
-          <TableHead className="text-right">Pending</TableHead>
-          <TableHead className="text-right">In Progress</TableHead>
-          <TableHead className="text-right">Finished</TableHead>
-          <TableHead>Created</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {campaigns.map((c) => (
-          <TableRow key={c.id}>
-            <TableCell>
-              <Link
-                href={`/dashboard/campaigns/${c.id}`}
-                className="text-primary font-medium hover:underline"
-              >
-                {c.name}
-              </Link>
-            </TableCell>
-            <TableCell>
-              <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
-            </TableCell>
-            <TableCell className="text-right font-medium">
-              {c.leadStats?.totalUsers != null
-                ? c.leadStats.totalUsers.toLocaleString()
-                : "—"}
-            </TableCell>
-            <TableCell className="text-right text-yellow-600">
-              {c.leadStats?.totalUsersPending != null
-                ? c.leadStats.totalUsersPending.toLocaleString()
-                : "—"}
-            </TableCell>
-            <TableCell className="text-right text-blue-600">
-              {c.leadStats?.totalUsersInProgress != null
-                ? c.leadStats.totalUsersInProgress.toLocaleString()
-                : "—"}
-            </TableCell>
-            <TableCell className="text-right text-green-600">
-              {c.leadStats?.totalUsersFinished != null
-                ? c.leadStats.totalUsersFinished.toLocaleString()
-                : "—"}
-            </TableCell>
-            <TableCell>
-              <span className="text-muted-foreground text-sm">
-                {formatDate(c.createdAt)}
-              </span>
-            </TableCell>
-          </TableRow>
-        ))}
-        {hasTotals && (
-          <TableRow className="bg-muted/50 font-semibold">
-            <TableCell colSpan={2} className="text-right text-xs uppercase tracking-wide">
-              Totals
-            </TableCell>
-            <TableCell className="text-right">
-              {totals.leads.toLocaleString()}
-            </TableCell>
-            <TableCell className="text-right text-yellow-600">
-              {totals.pending.toLocaleString()}
-            </TableCell>
-            <TableCell className="text-right text-blue-600">
-              {totals.inProgress.toLocaleString()}
-            </TableCell>
-            <TableCell className="text-right text-green-600">
-              {totals.finished.toLocaleString()}
-            </TableCell>
-            <TableCell />
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
-  );
-}
-
 // ─── Client Section ───────────────────────────────────────────────────────────
 
 function ClientSection({ group }: { group: ClientGroup }) {
   const [expanded, setExpanded] = useState(false);
   const hasLeadStats = group.totalLeads > 0;
-
-  const heyreachCampaigns = useMemo(
-    () => group.campaigns.filter((c) => c.platform === "heyreach"),
-    [group.campaigns]
-  );
-  const smartleadCampaigns = useMemo(
-    () => group.campaigns.filter((c) => c.platform === "smartlead"),
-    [group.campaigns]
-  );
-
-  const hasBothPlatforms =
-    heyreachCampaigns.length > 0 && smartleadCampaigns.length > 0;
-
-  // Default to whichever platform has campaigns (prefer heyreach)
-  const defaultTab = heyreachCampaigns.length > 0 ? "heyreach" : "smartlead";
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -284,18 +158,6 @@ function ClientSection({ group }: { group: ClientGroup }) {
           <span className="text-muted-foreground text-xs">
             {group.campaigns.length} campaign{group.campaigns.length !== 1 ? "s" : ""}
           </span>
-          {group.platformCounts.heyreach > 0 && (
-            <Badge variant="outline" className="gap-1 text-xs">
-              <Linkedin className="h-3 w-3" />
-              {group.platformCounts.heyreach}
-            </Badge>
-          )}
-          {group.platformCounts.smartlead > 0 && (
-            <Badge variant="outline" className="gap-1 text-xs">
-              <Mail className="h-3 w-3" />
-              {group.platformCounts.smartlead}
-            </Badge>
-          )}
           {group.activeCampaigns > 0 && (
             <Badge variant="default" className="text-xs">
               {group.activeCampaigns} active
@@ -328,34 +190,84 @@ function ClientSection({ group }: { group: ClientGroup }) {
         </div>
       </button>
 
-      {/* Expanded campaign tables — tabbed by platform */}
+      {/* Expanded campaign table */}
       {expanded && (
         <div className="border-t">
-          {hasBothPlatforms ? (
-            <Tabs defaultValue={defaultTab} className="w-full">
-              <div className="px-4 pt-3">
-                <TabsList>
-                  <TabsTrigger value="heyreach" className="gap-1.5">
-                    <Linkedin className="h-3.5 w-3.5" />
-                    HeyReach ({heyreachCampaigns.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="smartlead" className="gap-1.5">
-                    <Mail className="h-3.5 w-3.5" />
-                    Smartlead ({smartleadCampaigns.length})
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              <TabsContent value="heyreach">
-                <CampaignSubTable campaigns={heyreachCampaigns} />
-              </TabsContent>
-              <TabsContent value="smartlead">
-                <CampaignSubTable campaigns={smartleadCampaigns} />
-              </TabsContent>
-            </Tabs>
-          ) : (
-            /* Only one platform — no tabs needed */
-            <CampaignSubTable campaigns={group.campaigns} />
-          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Campaign</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Total Leads</TableHead>
+                <TableHead className="text-right">Pending</TableHead>
+                <TableHead className="text-right">In Progress</TableHead>
+                <TableHead className="text-right">Finished</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {group.campaigns.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell>
+                    <Link
+                      href={`/dashboard/campaigns/${c.id}`}
+                      className="text-primary font-medium hover:underline"
+                    >
+                      {c.name}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {c.leadStats?.totalUsers != null
+                      ? c.leadStats.totalUsers.toLocaleString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-yellow-600">
+                    {c.leadStats?.totalUsersPending != null
+                      ? c.leadStats.totalUsersPending.toLocaleString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-blue-600">
+                    {c.leadStats?.totalUsersInProgress != null
+                      ? c.leadStats.totalUsersInProgress.toLocaleString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="text-right text-green-600">
+                    {c.leadStats?.totalUsersFinished != null
+                      ? c.leadStats.totalUsersFinished.toLocaleString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-muted-foreground text-sm">
+                      {formatDate(c.createdAt)}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {hasLeadStats && (
+                <TableRow className="bg-muted/50 font-semibold">
+                  <TableCell colSpan={2} className="text-right text-xs uppercase tracking-wide">
+                    Totals
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {group.totalLeads.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right text-yellow-600">
+                    {group.totalPending.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right text-blue-600">
+                    {group.totalInProgress.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right text-green-600">
+                    {group.totalFinished.toLocaleString()}
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
@@ -364,8 +276,15 @@ function ClientSection({ group }: { group: ClientGroup }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ClientsPage() {
-  const { campaigns, loading } = useCampaigns();
+// ─── Platform Client List ─────────────────────────────────────────────────────
+
+function PlatformClientList({
+  campaigns,
+  loading,
+}: {
+  campaigns: UnifiedCampaign[];
+  loading: boolean;
+}) {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDesc, setSortDesc] = useState(false);
@@ -387,15 +306,18 @@ export default function ClientsPage() {
 
   const currentSortLabel = sortOptions.find((o) => o.field === sortField)?.label ?? "Sort";
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
-        <p className="text-muted-foreground text-sm">
-          Campaigns grouped by client.
-        </p>
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full rounded-lg" />
+        ))}
       </div>
+    );
+  }
 
+  return (
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[200px] max-w-sm flex-1">
           <Search className="text-muted-foreground absolute left-2.5 top-2.5 h-4 w-4" />
@@ -449,13 +371,7 @@ export default function ClientsPage() {
         </Button>
       </div>
 
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-muted-foreground flex h-32 items-center justify-center text-sm">
           No clients found.
         </div>
@@ -468,6 +384,51 @@ export default function ClientsPage() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function ClientsPage() {
+  const { campaigns, loading } = useCampaigns();
+
+  const heyreachCampaigns = useMemo(
+    () => campaigns.filter((c) => c.platform === "heyreach"),
+    [campaigns]
+  );
+  const smartleadCampaigns = useMemo(
+    () => campaigns.filter((c) => c.platform === "smartlead"),
+    [campaigns]
+  );
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
+        <p className="text-muted-foreground text-sm">
+          Campaigns grouped by client.
+        </p>
+      </div>
+
+      <Tabs defaultValue="heyreach" className="w-full">
+        <TabsList>
+          <TabsTrigger value="heyreach" className="gap-1.5">
+            <Linkedin className="h-3.5 w-3.5" />
+            HeyReach
+          </TabsTrigger>
+          <TabsTrigger value="smartlead" className="gap-1.5">
+            <Mail className="h-3.5 w-3.5" />
+            Smartlead
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="heyreach">
+          <PlatformClientList campaigns={heyreachCampaigns} loading={loading} />
+        </TabsContent>
+        <TabsContent value="smartlead">
+          <PlatformClientList campaigns={smartleadCampaigns} loading={loading} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
