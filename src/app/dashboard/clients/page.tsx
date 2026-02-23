@@ -2,10 +2,17 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, ChevronRight, Linkedin, Mail } from "lucide-react";
+import { Search, ChevronRight, ChevronDown, ArrowUpDown, Linkedin, Mail } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -103,8 +110,35 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
     });
   }
 
-  groups.sort((a, b) => a.name.localeCompare(b.name));
   return groups;
+}
+
+// ─── Sort Options ────────────────────────────────────────────────────────────
+
+type SortField = "name" | "campaigns" | "totalLeads" | "totalPending" | "totalInProgress" | "totalFinished" | "activeCampaigns";
+
+const sortOptions: { label: string; field: SortField }[] = [
+  { label: "Client Name", field: "name" },
+  { label: "Campaigns", field: "campaigns" },
+  { label: "Total Leads", field: "totalLeads" },
+  { label: "Pending", field: "totalPending" },
+  { label: "In Progress", field: "totalInProgress" },
+  { label: "Finished", field: "totalFinished" },
+  { label: "Active Campaigns", field: "activeCampaigns" },
+];
+
+function sortGroups(groups: ClientGroup[], field: SortField, desc: boolean): ClientGroup[] {
+  return [...groups].sort((a, b) => {
+    let cmp: number;
+    if (field === "name") {
+      cmp = a.name.localeCompare(b.name);
+    } else if (field === "campaigns") {
+      cmp = a.campaigns.length - b.campaigns.length;
+    } else {
+      cmp = a[field] - b[field];
+    }
+    return desc ? -cmp : cmp;
+  });
 }
 
 // ─── Client Section ───────────────────────────────────────────────────────────
@@ -270,14 +304,21 @@ function ClientSection({ group }: { group: ClientGroup }) {
 export default function ClientsPage() {
   const { campaigns, loading } = useCampaigns();
   const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDesc, setSortDesc] = useState(false);
 
   const clientGroups = useMemo(() => buildClientGroups(campaigns), [campaigns]);
 
   const filtered = useMemo(() => {
-    if (!search) return clientGroups;
-    const q = search.toLowerCase();
-    return clientGroups.filter((g) => g.name.toLowerCase().includes(q));
-  }, [clientGroups, search]);
+    let groups = clientGroups;
+    if (search) {
+      const q = search.toLowerCase();
+      groups = groups.filter((g) => g.name.toLowerCase().includes(q));
+    }
+    return sortGroups(groups, sortField, sortDesc);
+  }, [clientGroups, search, sortField, sortDesc]);
+
+  const currentSortLabel = sortOptions.find((o) => o.field === sortField)?.label ?? "Sort";
 
   return (
     <div className="space-y-6">
@@ -288,14 +329,48 @@ export default function ClientsPage() {
         </p>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="text-muted-foreground absolute left-2.5 top-2.5 h-4 w-4" />
-        <Input
-          placeholder="Search clients..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[200px] max-w-sm flex-1">
+          <Search className="text-muted-foreground absolute left-2.5 top-2.5 h-4 w-4" />
+          <Input
+            placeholder="Search clients..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              {currentSortLabel}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {sortOptions.map((opt) => (
+              <DropdownMenuItem
+                key={opt.field}
+                onClick={() => {
+                  if (sortField === opt.field) {
+                    setSortDesc(!sortDesc);
+                  } else {
+                    setSortField(opt.field);
+                    setSortDesc(opt.field !== "name");
+                  }
+                }}
+                className={sortField === opt.field ? "font-semibold" : ""}
+              >
+                {opt.label}
+                {sortField === opt.field && (
+                  <span className="ml-auto text-xs opacity-60">
+                    {sortDesc ? "↓" : "↑"}
+                  </span>
+                )}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {loading ? (
