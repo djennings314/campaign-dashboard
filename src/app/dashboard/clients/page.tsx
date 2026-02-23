@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, ChevronRight, ChevronDown, ArrowUpDown, Linkedin, Mail } from "lucide-react";
+import { Search, ChevronRight, ChevronDown, ArrowUpDown, Filter, Linkedin, Mail } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { useCampaigns } from "@/lib/hooks";
 import type { UnifiedCampaign, Platform } from "@/lib/types";
+import { isActiveClient } from "@/lib/active-clients";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -306,17 +307,21 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDesc, setSortDesc] = useState(false);
+  const [activeOnly, setActiveOnly] = useState(true);
 
   const clientGroups = useMemo(() => buildClientGroups(campaigns), [campaigns]);
 
   const filtered = useMemo(() => {
     let groups = clientGroups;
+    if (activeOnly) {
+      groups = groups.filter((g) => isActiveClient(g.name));
+    }
     if (search) {
       const q = search.toLowerCase();
       groups = groups.filter((g) => g.name.toLowerCase().includes(q));
     }
     return sortGroups(groups, sortField, sortDesc);
-  }, [clientGroups, search, sortField, sortDesc]);
+  }, [clientGroups, search, sortField, sortDesc, activeOnly]);
 
   const currentSortLabel = sortOptions.find((o) => o.field === sortField)?.label ?? "Sort";
 
@@ -371,6 +376,15 @@ export default function ClientsPage() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button
+          variant={activeOnly ? "default" : "outline"}
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setActiveOnly(!activeOnly)}
+        >
+          <Filter className="h-3.5 w-3.5" />
+          {activeOnly ? "Active clients" : "All clients"}
+        </Button>
       </div>
 
       {loading ? (
