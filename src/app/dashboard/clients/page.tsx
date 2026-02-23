@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -142,11 +143,129 @@ function sortGroups(groups: ClientGroup[], field: SortField, desc: boolean): Cli
   });
 }
 
+// ─── Campaign Sub-Table ──────────────────────────────────────────────────────
+
+function CampaignSubTable({ campaigns }: { campaigns: UnifiedCampaign[] }) {
+  const totals = useMemo(() => {
+    let leads = 0, pending = 0, inProgress = 0, finished = 0;
+    for (const c of campaigns) {
+      leads += c.leadStats?.totalUsers ?? 0;
+      pending += c.leadStats?.totalUsersPending ?? 0;
+      inProgress += c.leadStats?.totalUsersInProgress ?? 0;
+      finished += c.leadStats?.totalUsersFinished ?? 0;
+    }
+    return { leads, pending, inProgress, finished };
+  }, [campaigns]);
+
+  const hasTotals = totals.leads > 0;
+
+  if (campaigns.length === 0) {
+    return (
+      <div className="text-muted-foreground flex h-16 items-center justify-center text-sm">
+        No campaigns on this platform.
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Campaign</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Total Leads</TableHead>
+          <TableHead className="text-right">Pending</TableHead>
+          <TableHead className="text-right">In Progress</TableHead>
+          <TableHead className="text-right">Finished</TableHead>
+          <TableHead>Created</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {campaigns.map((c) => (
+          <TableRow key={c.id}>
+            <TableCell>
+              <Link
+                href={`/dashboard/campaigns/${c.id}`}
+                className="text-primary font-medium hover:underline"
+              >
+                {c.name}
+              </Link>
+            </TableCell>
+            <TableCell>
+              <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+            </TableCell>
+            <TableCell className="text-right font-medium">
+              {c.leadStats?.totalUsers != null
+                ? c.leadStats.totalUsers.toLocaleString()
+                : "—"}
+            </TableCell>
+            <TableCell className="text-right text-yellow-600">
+              {c.leadStats?.totalUsersPending != null
+                ? c.leadStats.totalUsersPending.toLocaleString()
+                : "—"}
+            </TableCell>
+            <TableCell className="text-right text-blue-600">
+              {c.leadStats?.totalUsersInProgress != null
+                ? c.leadStats.totalUsersInProgress.toLocaleString()
+                : "—"}
+            </TableCell>
+            <TableCell className="text-right text-green-600">
+              {c.leadStats?.totalUsersFinished != null
+                ? c.leadStats.totalUsersFinished.toLocaleString()
+                : "—"}
+            </TableCell>
+            <TableCell>
+              <span className="text-muted-foreground text-sm">
+                {formatDate(c.createdAt)}
+              </span>
+            </TableCell>
+          </TableRow>
+        ))}
+        {hasTotals && (
+          <TableRow className="bg-muted/50 font-semibold">
+            <TableCell colSpan={2} className="text-right text-xs uppercase tracking-wide">
+              Totals
+            </TableCell>
+            <TableCell className="text-right">
+              {totals.leads.toLocaleString()}
+            </TableCell>
+            <TableCell className="text-right text-yellow-600">
+              {totals.pending.toLocaleString()}
+            </TableCell>
+            <TableCell className="text-right text-blue-600">
+              {totals.inProgress.toLocaleString()}
+            </TableCell>
+            <TableCell className="text-right text-green-600">
+              {totals.finished.toLocaleString()}
+            </TableCell>
+            <TableCell />
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  );
+}
+
 // ─── Client Section ───────────────────────────────────────────────────────────
 
 function ClientSection({ group }: { group: ClientGroup }) {
   const [expanded, setExpanded] = useState(false);
   const hasLeadStats = group.totalLeads > 0;
+
+  const heyreachCampaigns = useMemo(
+    () => group.campaigns.filter((c) => c.platform === "heyreach"),
+    [group.campaigns]
+  );
+  const smartleadCampaigns = useMemo(
+    () => group.campaigns.filter((c) => c.platform === "smartlead"),
+    [group.campaigns]
+  );
+
+  const hasBothPlatforms =
+    heyreachCampaigns.length > 0 && smartleadCampaigns.length > 0;
+
+  // Default to whichever platform has campaigns (prefer heyreach)
+  const defaultTab = heyreachCampaigns.length > 0 ? "heyreach" : "smartlead";
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -209,91 +328,34 @@ function ClientSection({ group }: { group: ClientGroup }) {
         </div>
       </button>
 
-      {/* Expanded campaign table */}
+      {/* Expanded campaign tables — tabbed by platform */}
       {expanded && (
         <div className="border-t">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Campaign</TableHead>
-                <TableHead>Platform</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Total Leads</TableHead>
-                <TableHead className="text-right">Pending</TableHead>
-                <TableHead className="text-right">In Progress</TableHead>
-                <TableHead className="text-right">Finished</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {group.campaigns.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <Link
-                      href={`/dashboard/campaigns/${c.id}`}
-                      className="text-primary font-medium hover:underline"
-                    >
-                      {c.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
-                      {platformLabel(c.platform)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {c.leadStats?.totalUsers != null
-                      ? c.leadStats.totalUsers.toLocaleString()
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-yellow-600">
-                    {c.leadStats?.totalUsersPending != null
-                      ? c.leadStats.totalUsersPending.toLocaleString()
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-blue-600">
-                    {c.leadStats?.totalUsersInProgress != null
-                      ? c.leadStats.totalUsersInProgress.toLocaleString()
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-green-600">
-                    {c.leadStats?.totalUsersFinished != null
-                      ? c.leadStats.totalUsersFinished.toLocaleString()
-                      : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-muted-foreground text-sm">
-                      {formatDate(c.createdAt)}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {/* Totals row */}
-              {hasLeadStats && (
-                <TableRow className="bg-muted/50 font-semibold">
-                  <TableCell colSpan={3} className="text-right text-xs uppercase tracking-wide">
-                    Totals
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {group.totalLeads.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right text-yellow-600">
-                    {group.totalPending.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right text-blue-600">
-                    {group.totalInProgress.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right text-green-600">
-                    {group.totalFinished.toLocaleString()}
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          {hasBothPlatforms ? (
+            <Tabs defaultValue={defaultTab} className="w-full">
+              <div className="px-4 pt-3">
+                <TabsList>
+                  <TabsTrigger value="heyreach" className="gap-1.5">
+                    <Linkedin className="h-3.5 w-3.5" />
+                    HeyReach ({heyreachCampaigns.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="smartlead" className="gap-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    Smartlead ({smartleadCampaigns.length})
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="heyreach">
+                <CampaignSubTable campaigns={heyreachCampaigns} />
+              </TabsContent>
+              <TabsContent value="smartlead">
+                <CampaignSubTable campaigns={smartleadCampaigns} />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            /* Only one platform — no tabs needed */
+            <CampaignSubTable campaigns={group.campaigns} />
+          )}
         </div>
       )}
     </div>
