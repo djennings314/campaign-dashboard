@@ -25,6 +25,32 @@ export function extractClientName(name: string): string {
   const spaceDash = name.indexOf(" - ");
   if (spaceDash > 0) raw = name.slice(0, spaceDash).trim();
 
+  // 1b. "Client Name (metadata-here)" — strip parenthetical suffix
+  //     e.g. "Fastech Solutions 2 (Las Vegas-C/VP/D-Scrubbed)"
+  //     Include key qualifiers from inside parens (like "Las Vegas")
+  //     so the alias system can route them correctly.
+  if (!raw) {
+    const parenIdx = name.indexOf(" (");
+    if (parenIdx > 0) {
+      const base = name.slice(0, parenIdx).trim();
+      // Extract meaningful qualifiers from parenthetical content
+      const parenContent = name.slice(parenIdx + 2).replace(/\).*$/, "");
+      // Check if paren content starts with a geographical/qualifying term
+      // before any technical suffixes (separated by - )
+      const qualifier = parenContent.split("-")[0].trim();
+      if (qualifier) {
+        // Try base + qualifier first (e.g. "Fastech Solutions Las Vegas")
+        const withQualifier = `${base} ${qualifier}`;
+        const canonical = normalizeClientName(withQualifier);
+        if (canonical !== withQualifier) {
+          raw = withQualifier;
+        }
+      }
+      // Fall back to just the base name
+      if (!raw) raw = base;
+    }
+  }
+
   // 2. "Client- Title" or "Client -Title"
   //    Try each "-" position and pick the first one whose left side
   //    resolves to a known CRM client. This avoids splitting on hyphens

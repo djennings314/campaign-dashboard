@@ -18,7 +18,7 @@ const ACTIVE_CLIENT_NAMES: string[] = [
   "FocusCFO - Northeast Ohio",
   "Mercury Promotions",
   "HH Agency",
-  "Fastech Solutions",
+  "Fastech Solutions OR/WA",
   "Fastech Solutions Las Vegas",
   "Robindale Energy & Associated Companies",
   "Transmission & Distribution Services",
@@ -174,11 +174,18 @@ const ALIASES: Record<string, string> = {
   "brophy air": "Brophy Air Specialty Group",
   // Sharp Innovation (singular) → Sharp Innovations (canonical)
   "sharp innovation": "Sharp Innovations",
-  // Fastech — Las Vegas is one client, base Fastech is another
+  // Fastech — two geographical campaigns treated as separate clients
+  // Anything mentioning Las Vegas → Las Vegas
   "fastech solutions (las vegas)": "Fastech Solutions Las Vegas",
   "fastech solutions 2 (las vegas)": "Fastech Solutions Las Vegas",
   "fastech solutions las vegas": "Fastech Solutions Las Vegas",
-  "fastech": "Fastech Solutions",
+  "fastech solutions 2 las vegas": "Fastech Solutions Las Vegas",
+  "fastech las vegas": "Fastech Solutions Las Vegas",
+  // Everything else → OR/WA
+  "fastech": "Fastech Solutions OR/WA",
+  "fastech solutions": "Fastech Solutions OR/WA",
+  "fastech solutions 2": "Fastech Solutions OR/WA",
+  "fastech or/wa": "Fastech Solutions OR/WA",
 };
 
 /**
