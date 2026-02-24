@@ -169,6 +169,10 @@ const ALIASES: Record<string, string> = {
   "association for supply chain": "Association for Supply Chain Management",
   "axis warehouse": "Axis Warehouse & Logistics/Ifrost",
   "axis warehouse & logistics": "Axis Warehouse & Logistics/Ifrost",
+  // Black Dot and Black Dot Group are the same client
+  "black dot": "Black Dot Group",
+  "blackdot": "Black Dot Group",
+  "do not start black dot": "Black Dot Group",
   // Brophy and Brophy Air are the same client
   "brophy": "Brophy Air Specialty Group",
   "brophy air": "Brophy Air Specialty Group",
@@ -205,7 +209,7 @@ for (const [alias, canonical] of Object.entries(ALIASES)) {
  * Uses case-insensitive exact match only (no prefix matching)
  * to avoid merging distinct clients like TeamLogic IT locations.
  */
-function findCanonicalName(clientName: string): string | null {
+export function findCanonicalName(clientName: string): string | null {
   const normalized = clientName.toLowerCase().trim();
 
   // Exact match (includes aliases)

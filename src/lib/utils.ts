@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { normalizeClientName } from "./active-clients"
+import { findCanonicalName, normalizeClientName } from "./active-clients"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -10,7 +10,8 @@ export function cn(...inputs: ClassValue[]) {
  * Extract the client name from a campaign name.
  * Tries in order:
  *   1. Text before " - " (space-dash-space)
- *   2. Text before "-" (dash with optional spaces)
+ *   1b. Text before " (" (parenthetical metadata), with qualifier extraction
+ *   2. Text before "-" (bare dash), trying each dash to find a known CRM client
  *   3. Text before the word "campaign" (case-insensitive)
  * Returns "Uncategorized" if none of those match.
  *
@@ -41,8 +42,7 @@ export function extractClientName(name: string): string {
       if (qualifier) {
         // Try base + qualifier first (e.g. "Fastech Solutions Las Vegas")
         const withQualifier = `${base} ${qualifier}`;
-        const canonical = normalizeClientName(withQualifier);
-        if (canonical !== withQualifier) {
+        if (findCanonicalName(withQualifier) !== null) {
           raw = withQualifier;
         }
       }
@@ -55,14 +55,14 @@ export function extractClientName(name: string): string {
   //    Try each "-" position and pick the first one whose left side
   //    resolves to a known CRM client. This avoids splitting on hyphens
   //    that are part of the client name (e.g. "C-Cured Consulting").
+  //    Falls back to the last dash if no known client is found.
   if (!raw) {
     let searchFrom = 0;
     while (searchFrom < name.length) {
       const dashIdx = name.indexOf("-", searchFrom);
       if (dashIdx <= 0) break;
       const candidate = name.slice(0, dashIdx).trim();
-      const canonical = normalizeClientName(candidate);
-      if (canonical !== candidate || dashIdx === name.lastIndexOf("-")) {
+      if (findCanonicalName(candidate) !== null || dashIdx === name.lastIndexOf("-")) {
         // Either it matched a known client, or this is the last dash
         raw = candidate;
         break;
