@@ -149,33 +149,85 @@ const ACTIVE_CLIENT_NAMES: string[] = [
 ];
 
 /**
- * Normalized set for fast exact lookups.
+ * Known aliases — maps common variations to their canonical CRM name.
+ * Add entries here when campaign names don't match the CRM exactly.
+ * Keys must be lowercase.
  */
-const normalizedNames = new Set(
-  ACTIVE_CLIENT_NAMES.map((n) => n.toLowerCase().trim())
-);
+const ALIASES: Record<string, string> = {
+  "heckler": "Heckler Design",
+  "pierce communication": "Pierce Communications",
+  "gobrandgo!": "goBRANDgo! - Shapiro Metals (White Label)",
+  "us property management": "US Property Management (DBA Lyric Tower)",
+  "lighting expertise and design": "Lighting Expertise And Design Services",
+  "lancaster safety consulting": "Lancaster Safety Consulting Inc. (Win Back)",
+  "lancaster safety consulting inc.": "Lancaster Safety Consulting Inc. (Win Back)",
+  "lancaster safety consulting inc": "Lancaster Safety Consulting Inc. (Win Back)",
+  "cultura hr": "Cultura HR - LinkedIn Only",
+  "realclean aircraft detailing": "RealClean Aircraft Detailing - Corporate",
+  "melton machine & control": "Melton Machine & Control Program 2",
+  "association for supply chain": "Association for Supply Chain Management",
+  "axis warehouse": "Axis Warehouse & Logistics/Ifrost",
+  "axis warehouse & logistics": "Axis Warehouse & Logistics/Ifrost",
+};
 
 /**
- * Check if a client name (as extracted from campaign names) matches
- * any active client from the CRM list.
- *
- * Uses exact match first, then falls back to prefix matching to handle
- * variations like "FocusCFO" vs "FocusCFO - Charlotte, NC" or
- * "TeamLogic IT" vs "TeamLogic IT of Atlanta, GA".
+ * Build a lookup from lowercased name → canonical (display) name.
  */
-export function isActiveClient(clientName: string): boolean {
+const canonicalMap = new Map<string, string>();
+for (const name of ACTIVE_CLIENT_NAMES) {
+  canonicalMap.set(name.toLowerCase().trim(), name);
+}
+// Add aliases into the map
+for (const [alias, canonical] of Object.entries(ALIASES)) {
+  canonicalMap.set(alias, canonical);
+}
+
+/**
+ * Resolve a client name to its canonical form from the CRM list.
+ * Uses case-insensitive exact match only (no prefix matching)
+ * to avoid merging distinct clients like TeamLogic IT locations.
+ */
+function findCanonicalName(clientName: string): string | null {
   const normalized = clientName.toLowerCase().trim();
 
-  // Exact match
-  if (normalizedNames.has(normalized)) return true;
+  // Exact match (includes aliases)
+  const exact = canonicalMap.get(normalized);
+  if (exact) return exact;
 
-  // Check if the extracted client name starts with any active client name,
-  // or if any active client name starts with the extracted name.
-  for (const active of normalizedNames) {
-    if (normalized.startsWith(active) || active.startsWith(normalized)) {
+  return null;
+}
+
+/**
+ * Check if a client name matches any active client from the CRM list.
+ * Uses exact match + aliases, then falls back to prefix matching
+ * only for the isActive check (not for grouping).
+ */
+export function isActiveClient(clientName: string): boolean {
+  if (findCanonicalName(clientName) !== null) return true;
+
+  // Looser prefix check for the active filter only — this is safe because
+  // it doesn't affect grouping (campaigns stay in their own groups).
+  const normalized = clientName.toLowerCase().trim();
+  for (const [key] of canonicalMap) {
+    if (normalized.startsWith(key) || key.startsWith(normalized)) {
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Normalize a client name for consistent grouping.
+ *
+ * If the name matches a CRM active client (case-insensitive exact or alias),
+ * returns the canonical CRM spelling. Otherwise returns the trimmed input
+ * as-is to avoid accidentally merging distinct clients.
+ */
+export function normalizeClientName(rawName: string): string {
+  const canonical = findCanonicalName(rawName);
+  if (canonical) return canonical;
+
+  // Not in CRM — return trimmed original
+  return rawName.trim();
 }
