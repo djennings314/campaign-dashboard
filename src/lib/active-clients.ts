@@ -169,6 +169,9 @@ const ALIASES: Record<string, string> = {
   "association for supply chain": "Association for Supply Chain Management",
   "axis warehouse": "Axis Warehouse & Logistics/Ifrost",
   "axis warehouse & logistics": "Axis Warehouse & Logistics/Ifrost",
+  // Brophy and Brophy Air are the same client
+  "brophy": "Brophy Air Specialty Group",
+  "brophy air": "Brophy Air Specialty Group",
   // Fastech — Las Vegas is one client, base Fastech is another
   "fastech solutions (las vegas)": "Fastech Solutions Las Vegas",
   "fastech solutions 2 (las vegas)": "Fastech Solutions Las Vegas",
