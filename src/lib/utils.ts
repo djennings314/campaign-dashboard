@@ -26,9 +26,23 @@ export function extractClientName(name: string): string {
   if (spaceDash > 0) raw = name.slice(0, spaceDash).trim();
 
   // 2. "Client- Title" or "Client -Title"
+  //    Try each "-" position and pick the first one whose left side
+  //    resolves to a known CRM client. This avoids splitting on hyphens
+  //    that are part of the client name (e.g. "C-Cured Consulting").
   if (!raw) {
-    const dashIdx = name.indexOf("-");
-    if (dashIdx > 0) raw = name.slice(0, dashIdx).trim();
+    let searchFrom = 0;
+    while (searchFrom < name.length) {
+      const dashIdx = name.indexOf("-", searchFrom);
+      if (dashIdx <= 0) break;
+      const candidate = name.slice(0, dashIdx).trim();
+      const canonical = normalizeClientName(candidate);
+      if (canonical !== candidate || dashIdx === name.lastIndexOf("-")) {
+        // Either it matched a known client, or this is the last dash
+        raw = candidate;
+        break;
+      }
+      searchFrom = dashIdx + 1;
+    }
   }
 
   // 3. "Client Campaign …" or "Client campaign …"
