@@ -292,8 +292,9 @@ function PlatformClientList({
 
   const clientGroups = useMemo(() => buildClientGroups(campaigns), [campaigns]);
 
-  const filtered = useMemo(() => {
+  const { filtered, uncategorized } = useMemo(() => {
     let groups = clientGroups;
+    const uncatGroups = groups.filter((g) => !isActiveClient(g.name));
     if (activeOnly) {
       groups = groups.filter((g) => isActiveClient(g.name));
     }
@@ -301,7 +302,12 @@ function PlatformClientList({
       const q = search.toLowerCase();
       groups = groups.filter((g) => g.name.toLowerCase().includes(q));
     }
-    return sortGroups(groups, sortField, sortDesc);
+    return {
+      filtered: sortGroups(groups, sortField, sortDesc),
+      uncategorized: search
+        ? uncatGroups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()))
+        : uncatGroups,
+    };
   }, [clientGroups, search, sortField, sortDesc, activeOnly]);
 
   const currentSortLabel = sortOptions.find((o) => o.field === sortField)?.label ?? "Sort";
@@ -383,6 +389,21 @@ function PlatformClientList({
             ))}
           </CardContent>
         </Card>
+      )}
+
+      {uncategorized.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-muted-foreground text-sm font-medium">
+            Uncategorized ({uncategorized.length})
+          </h3>
+          <Card>
+            <CardContent className="space-y-2 pt-4">
+              {sortGroups(uncategorized, sortField, sortDesc).map((group) => (
+                <ClientSection key={group.name} group={group} />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
