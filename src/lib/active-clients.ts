@@ -19,6 +19,7 @@ const ACTIVE_CLIENT_NAMES: string[] = [
   "Mercury Promotions",
   "HH Agency",
   "Fastech Solutions",
+  "Fastech Solutions Las Vegas",
   "Robindale Energy & Associated Companies",
   "Transmission & Distribution Services",
   "Computing Edge Solutions",
@@ -168,6 +169,11 @@ const ALIASES: Record<string, string> = {
   "association for supply chain": "Association for Supply Chain Management",
   "axis warehouse": "Axis Warehouse & Logistics/Ifrost",
   "axis warehouse & logistics": "Axis Warehouse & Logistics/Ifrost",
+  // Fastech — Las Vegas is one client, base Fastech is another
+  "fastech solutions (las vegas)": "Fastech Solutions Las Vegas",
+  "fastech solutions 2 (las vegas)": "Fastech Solutions Las Vegas",
+  "fastech solutions las vegas": "Fastech Solutions Las Vegas",
+  "fastech": "Fastech Solutions",
 };
 
 /**
