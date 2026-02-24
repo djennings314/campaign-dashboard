@@ -294,7 +294,15 @@ function PlatformClientList({
 
   const { filtered, uncategorized } = useMemo(() => {
     let groups = clientGroups;
-    const uncatGroups = groups.filter((g) => !isActiveClient(g.name));
+    // Uncategorized: not in CRM, and has at least one non-terminal campaign
+    const uncatGroups = groups.filter((g) => {
+      if (isActiveClient(g.name)) return false;
+      const hasLiveCampaign = g.campaigns.some((c) => {
+        const s = c.status.toUpperCase();
+        return s === "IN_PROGRESS" || s === "ACTIVE" || s === "PAUSED" || s === "DRAFT" || s === "SCHEDULED";
+      });
+      return hasLiveCampaign;
+    });
     if (activeOnly) {
       groups = groups.filter((g) => isActiveClient(g.name));
     }
