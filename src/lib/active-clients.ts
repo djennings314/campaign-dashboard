@@ -172,6 +172,8 @@ const ALIASES: Record<string, string> = {
   // Brophy and Brophy Air are the same client
   "brophy": "Brophy Air Specialty Group",
   "brophy air": "Brophy Air Specialty Group",
+  // Sharp Innovation (singular) → Sharp Innovations (canonical)
+  "sharp innovation": "Sharp Innovations",
   // Fastech — Las Vegas is one client, base Fastech is another
   "fastech solutions (las vegas)": "Fastech Solutions Las Vegas",
   "fastech solutions 2 (las vegas)": "Fastech Solutions Las Vegas",
