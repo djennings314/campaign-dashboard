@@ -147,6 +147,7 @@ const ACTIVE_CLIENT_NAMES: string[] = [
   "Solution Services HR",
   "Association for Supply Chain Management Program 2",
   "JC2 Technologies",
+  "Absolute Packaging",
 ];
 
 /**
