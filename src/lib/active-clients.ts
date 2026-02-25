@@ -157,6 +157,7 @@ const ACTIVE_CLIENT_NAMES: string[] = [
 const ALIASES: Record<string, string> = {
   // Robindale variations
   "robindale": "Robindale Energy & Associated Companies",
+  "robindale steel": "Robindale Energy & Associated Companies",
   "robindale energy": "Robindale Energy & Associated Companies",
   "robindale energy & associated": "Robindale Energy & Associated Companies",
   "heckler": "Heckler Design",
