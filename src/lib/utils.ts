@@ -30,6 +30,8 @@ export function extractClientName(name: string): string {
   //     e.g. "Fastech Solutions 2 (Las Vegas-C/VP/D-Scrubbed)"
   //     Include key qualifiers from inside parens (like "Las Vegas")
   //     so the alias system can route them correctly.
+  //     Only use the base as raw if it resolves to a known client;
+  //     otherwise let later steps (bare-dash) handle it.
   if (!raw) {
     const parenIdx = name.indexOf(" (");
     if (parenIdx > 0) {
@@ -46,8 +48,8 @@ export function extractClientName(name: string): string {
           raw = withQualifier;
         }
       }
-      // Fall back to just the base name
-      if (!raw) raw = base;
+      // Fall back to base only if it's a known client
+      if (!raw && findCanonicalName(base) !== null) raw = base;
     }
   }
 
