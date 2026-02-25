@@ -155,6 +155,10 @@ const ACTIVE_CLIENT_NAMES: string[] = [
  * Keys must be lowercase.
  */
 const ALIASES: Record<string, string> = {
+  // Robindale variations
+  "robindale": "Robindale Energy & Associated Companies",
+  "robindale energy": "Robindale Energy & Associated Companies",
+  "robindale energy & associated": "Robindale Energy & Associated Companies",
   "heckler": "Heckler Design",
   "pierce communication": "Pierce Communications",
   "gobrandgo!": "goBRANDgo! - Shapiro Metals (White Label)",
