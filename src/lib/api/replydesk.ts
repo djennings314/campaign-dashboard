@@ -60,8 +60,8 @@ export interface Attribution {
   internal: Set<string>;
   /** Salesforce accounts Reply Desk has stopped handling (offboarded clients). */
   offboarded: Set<string>;
-  /** Lowercased client name → client name; built on first use. */
-  namesLower?: Map<string, string>;
+  /** Lowercased client name → client; built on first use. */
+  namesLower?: Map<string, { name: string; salesforceAccountId: string }>;
 }
 
 export interface CampaignAccount {
@@ -217,14 +217,19 @@ export function heyreachAccount(
 }
 
 /**
- * Reply Desk's spelling of a client name that was parsed from a campaign name,
+ * The Reply Desk client whose name matches one parsed from a campaign name,
  * for campaigns the map does not cover. Exact, case-insensitive; null if none.
  */
-export function knownClientName(parsed: string, a: Attribution | null): string | null {
+export function knownClient(
+  parsed: string,
+  a: Attribution | null
+): { name: string; salesforceAccountId: string } | null {
   if (!a) return null;
   if (!a.namesLower) {
     a.namesLower = new Map();
-    for (const n of a.clientNames.values()) a.namesLower.set(n.toLowerCase().trim(), n);
+    for (const [sf, n] of a.clientNames) {
+      a.namesLower.set(n.toLowerCase().trim(), { name: n, salesforceAccountId: sf });
+    }
   }
   return a.namesLower.get(parsed.toLowerCase().trim()) ?? null;
 }

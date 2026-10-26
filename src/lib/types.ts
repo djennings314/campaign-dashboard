@@ -109,6 +109,8 @@ export interface UnifiedCampaign {
    */
   clientSource: "salesforce" | "name";
   salesforceAccountId?: string;
+  /** Salesforce account status (Active, Canceled, On Hold…); absent if unknown. */
+  accountStatus?: string;
   /** Client Reply Desk has offboarded (cancelled / no longer handled). */
   offboarded?: boolean;
   status: string;

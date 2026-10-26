@@ -8,7 +8,7 @@ import {
   loadAttribution,
   smartleadAccount,
   heyreachAccount,
-  knownClientName,
+  knownClient,
   type Attribution,
   type CampaignAccount,
 } from "./replydesk";
@@ -17,6 +17,7 @@ import {
   smartleadWorkspaces,
   type Workspace,
 } from "./workspaces";
+import { getAccountStatuses } from "./aiq";
 import type {
   UnifiedCampaign,
   CampaignCategory,
@@ -40,7 +41,9 @@ function categorize(name: string): CampaignCategory {
 /**
  * Whose campaign this is: Reply Desk's Salesforce account when it knows,
  * otherwise the name parsed from the campaign, spelled as the CRM list or
- * Reply Desk spells it where one of them knows that name.
+ * Reply Desk spells it where one of them knows that name. A name Reply Desk
+ * knows also brings its Salesforce account, so the client's status can be
+ * looked up.
  */
 function clientFields(
   name: string,
@@ -56,10 +59,16 @@ function clientFields(
     };
   }
   const parsed = extractClientName(name);
+  const canonical = findCanonicalName(parsed);
+  const known = knownClient(canonical ?? parsed, a) ?? (canonical ? knownClient(parsed, a) : null);
   return {
-    client: findCanonicalName(parsed) ?? knownClientName(parsed, a) ?? parsed,
+    client: canonical ?? known?.name ?? parsed,
     clientSource: "name",
-    offboarded: account.offboarded || undefined,
+    salesforceAccountId: known?.salesforceAccountId,
+    offboarded:
+      account.offboarded ||
+      (!!known && !!a?.offboarded.has(known.salesforceAccountId)) ||
+      undefined,
   };
 }
 
@@ -148,6 +157,14 @@ export async function getAllCampaigns(): Promise<CampaignsResult> {
       errors.push(msg);
     }
   });
+
+  const statuses = await getAccountStatuses(
+    campaigns.map((c) => c.salesforceAccountId).filter((id): id is string => !!id)
+  );
+  for (const c of campaigns) {
+    const status = c.salesforceAccountId && statuses.get(c.salesforceAccountId);
+    if (status) c.accountStatus = status;
+  }
 
   campaigns.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

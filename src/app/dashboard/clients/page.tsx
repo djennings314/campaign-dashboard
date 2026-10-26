@@ -69,16 +69,21 @@ interface ClientGroup {
   offboarded: boolean;
   /** At least one campaign that is not finished or stopped. */
   live: boolean;
+  /** Salesforce status: "Active" if any of its accounts is; null if unknown. */
+  accountStatus: string | null;
 }
 
 const LIVE_STATUSES = new Set(["IN_PROGRESS", "ACTIVE", "PAUSED", "DRAFT", "SCHEDULED", "STARTING"]);
 
 /**
- * Shown under "Active clients": on the CRM list, or tied to a Salesforce
- * account by Reply Desk and still running something. Offboarded never.
+ * Shown under "Active clients". Salesforce decides when it has a status for
+ * the client: Active only (Canceled and On Hold are not). Otherwise the old
+ * guess: on the CRM list, or tied to a Salesforce account by Reply Desk and
+ * still running something. Offboarded never.
  */
 function isActiveGroup(g: ClientGroup): boolean {
   if (g.offboarded) return false;
+  if (g.accountStatus) return g.accountStatus === "Active";
   return isActiveClient(g.name) || (g.salesforce && g.live);
 }
 
@@ -121,6 +126,9 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
       salesforce: cList.some((c) => c.clientSource === "salesforce"),
       offboarded: cList.some((c) => c.offboarded),
       live: cList.some((c) => LIVE_STATUSES.has(c.status.toUpperCase())),
+      accountStatus: cList.some((c) => c.accountStatus === "Active")
+        ? "Active"
+        : cList.find((c) => c.accountStatus)?.accountStatus ?? null,
     });
   }
 
@@ -186,6 +194,14 @@ function ClientSection({ group }: { group: ClientGroup }) {
           {group.pausedCampaigns > 0 && (
             <Badge variant="secondary" className="text-xs">
               {group.pausedCampaigns} paused
+            </Badge>
+          )}
+          {group.accountStatus && group.accountStatus !== "Active" && (
+            <Badge
+              variant={group.accountStatus === "Canceled" ? "destructive" : "secondary"}
+              className="text-xs"
+            >
+              {group.accountStatus}
             </Badge>
           )}
           {group.offboarded && (
@@ -330,10 +346,10 @@ function PlatformClientList({
 
   const { filtered, uncategorized } = useMemo(() => {
     let groups = clientGroups;
-    // Uncategorized: not an active client by either source, and has at
-    // least one non-terminal campaign
+    // Uncategorized: status unknown, not an active client by the fallback
+    // guess, and has at least one non-terminal campaign
     const uncatGroups = groups.filter(
-      (g) => !isActiveGroup(g) && !g.offboarded && g.live
+      (g) => !isActiveGroup(g) && !g.offboarded && !g.accountStatus && g.live
     );
     if (activeOnly) {
       groups = groups.filter(isActiveGroup);
