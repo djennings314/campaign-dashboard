@@ -3,6 +3,7 @@ import {
   getSmartleadCampaignAnalytics,
   type SmartleadCampaignLeadStats,
 } from "@/lib/api/smartlead";
+import { findWorkspace } from "@/lib/api/workspaces";
 import type { HeyReachProgressStats } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +21,8 @@ function toLeadStats(ls: SmartleadCampaignLeadStats): HeyReachProgressStats {
 }
 
 /**
- * GET /api/campaigns/batch-stats?ids=sl_123,sl_456,...
- * Fetches analytics for a batch of Smartlead campaign IDs.
+ * GET /api/campaigns/batch-stats?workspace=sapper&ids=sl_123,sl_456,...
+ * Fetches analytics for a batch of Smartlead campaign IDs in one workspace.
  * Returns { [unifiedId]: HeyReachProgressStats }
  */
 export async function GET(request: Request) {
@@ -31,8 +32,9 @@ export async function GET(request: Request) {
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s.startsWith("sl_"));
+  const workspace = findWorkspace("smartlead", searchParams.get("workspace") ?? "sapper");
 
-  if (ids.length === 0) {
+  if (ids.length === 0 || !workspace) {
     return NextResponse.json({ data: {} });
   }
 
@@ -41,7 +43,7 @@ export async function GET(request: Request) {
   const results = await Promise.allSettled(
     batch.map(async (uid) => {
       const numId = Number(uid.replace("sl_", ""));
-      const analytics = await getSmartleadCampaignAnalytics(numId);
+      const analytics = await getSmartleadCampaignAnalytics(workspace.key, numId);
       return { uid, analytics };
     })
   );

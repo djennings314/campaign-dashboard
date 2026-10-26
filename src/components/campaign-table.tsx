@@ -108,7 +108,7 @@ const columns: ColumnDef<UnifiedCampaign>[] = [
     ),
     cell: ({ row }) => (
       <Badge variant="outline" className="text-xs">
-        {platformLabel(row.original.platform)}
+        {platformLabel(row.original.platform)} · {row.original.workspaceName}
       </Badge>
     ),
   },

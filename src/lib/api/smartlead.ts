@@ -2,11 +2,10 @@ import type { SmartleadCampaign, SmartleadOverallStats } from "@/lib/types";
 
 const BASE_URL =
   process.env.SMARTLEAD_API_URL ?? "https://server.smartlead.ai/api/v1";
-const API_KEY = () => process.env.SMARTLEAD_API_KEY ?? "";
 
-function buildUrl(path: string, params: Record<string, string> = {}): string {
+function buildUrl(key: string, path: string, params: Record<string, string> = {}): string {
   const u = new URL(`${BASE_URL}${path}`);
-  u.searchParams.set("api_key", API_KEY());
+  u.searchParams.set("api_key", key);
   for (const [k, v] of Object.entries(params)) {
     if (v) u.searchParams.set(k, v);
   }
@@ -14,10 +13,11 @@ function buildUrl(path: string, params: Record<string, string> = {}): string {
 }
 
 async function smartleadFetch<T>(
+  key: string,
   path: string,
   params: Record<string, string> = {}
 ): Promise<T> {
-  const url = buildUrl(path, params);
+  const url = buildUrl(key, path, params);
   console.log(`[Smartlead] GET ${path}`);
 
   const res = await fetch(url, {
@@ -37,14 +37,15 @@ async function smartleadFetch<T>(
   return res.json();
 }
 
-export async function getSmartleadCampaigns(): Promise<SmartleadCampaign[]> {
-  return smartleadFetch("/campaigns");
+export async function getSmartleadCampaigns(key: string): Promise<SmartleadCampaign[]> {
+  return smartleadFetch(key, "/campaigns");
 }
 
 export async function getSmartleadCampaign(
+  key: string,
   id: number
 ): Promise<SmartleadCampaign> {
-  return smartleadFetch(`/campaigns/${id}`);
+  return smartleadFetch(key, `/campaigns/${id}`);
 }
 
 export interface SmartleadCampaignLeadStats {
@@ -79,19 +80,20 @@ export interface SmartleadCampaignAnalytics {
 }
 
 export async function getSmartleadCampaignAnalytics(
+  key: string,
   campaignId: number
 ): Promise<SmartleadCampaignAnalytics> {
-  return smartleadFetch(`/campaigns/${campaignId}/analytics`);
+  return smartleadFetch(key, `/campaigns/${campaignId}/analytics`);
 }
 
 /**
  * Fetch campaigns with their analytics data merged in.
  * Analytics are fetched in parallel batches to stay within rate limits.
  */
-export async function getSmartleadCampaignsWithAnalytics(): Promise<
+export async function getSmartleadCampaignsWithAnalytics(key: string): Promise<
   (SmartleadCampaign & { analytics?: SmartleadCampaignAnalytics })[]
 > {
-  const campaigns = await getSmartleadCampaigns();
+  const campaigns = await getSmartleadCampaigns(key);
 
   // Fetch analytics in batches of 50
   const BATCH_SIZE = 50;
@@ -100,7 +102,7 @@ export async function getSmartleadCampaignsWithAnalytics(): Promise<
   for (let i = 0; i < campaigns.length; i += BATCH_SIZE) {
     const batch = campaigns.slice(i, i + BATCH_SIZE);
     const results = await Promise.allSettled(
-      batch.map((c) => getSmartleadCampaignAnalytics(c.id))
+      batch.map((c) => getSmartleadCampaignAnalytics(key, c.id))
     );
     for (const result of results) {
       if (result.status === "fulfilled") {
@@ -116,13 +118,14 @@ export async function getSmartleadCampaignsWithAnalytics(): Promise<
 }
 
 export async function getSmartleadOverallStats(
+  key: string,
   startDate: string,
   endDate: string
 ): Promise<SmartleadOverallStats> {
   const data = await smartleadFetch<{
     success: boolean;
     data: { overall_stats: SmartleadOverallStats };
-  }>("/analytics/overall-stats-v2", {
+  }>(key, "/analytics/overall-stats-v2", {
     start_date: startDate,
     end_date: endDate,
   });

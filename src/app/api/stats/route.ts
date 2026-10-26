@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getDashboardStats } from "@/lib/api/unified";
 
 export const dynamic = "force-dynamic";
+// Two workspaces per platform, paged within HeyReach's rate limit.
+export const maxDuration = 60;
 
 export async function GET() {
   try {

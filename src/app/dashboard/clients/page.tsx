@@ -63,6 +63,23 @@ interface ClientGroup {
   totalPending: number;
   totalInProgress: number;
   totalFinished: number;
+  /** Reply Desk tied at least one campaign to a Salesforce account. */
+  salesforce: boolean;
+  /** Reply Desk has offboarded this client. */
+  offboarded: boolean;
+  /** At least one campaign that is not finished or stopped. */
+  live: boolean;
+}
+
+const LIVE_STATUSES = new Set(["IN_PROGRESS", "ACTIVE", "PAUSED", "DRAFT", "SCHEDULED", "STARTING"]);
+
+/**
+ * Shown under "Active clients": on the CRM list, or tied to a Salesforce
+ * account by Reply Desk and still running something. Offboarded never.
+ */
+function isActiveGroup(g: ClientGroup): boolean {
+  if (g.offboarded) return false;
+  return isActiveClient(g.name) || (g.salesforce && g.live);
 }
 
 function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
@@ -101,6 +118,9 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
       totalPending,
       totalInProgress,
       totalFinished,
+      salesforce: cList.some((c) => c.clientSource === "salesforce"),
+      offboarded: cList.some((c) => c.offboarded),
+      live: cList.some((c) => LIVE_STATUSES.has(c.status.toUpperCase())),
     });
   }
 
@@ -168,6 +188,19 @@ function ClientSection({ group }: { group: ClientGroup }) {
               {group.pausedCampaigns} paused
             </Badge>
           )}
+          {group.offboarded && (
+            <Badge variant="destructive" className="text-xs">
+              offboarded
+            </Badge>
+          )}
+          {!group.salesforce && (
+            <span
+              className="text-muted-foreground text-xs italic"
+              title="Reply Desk has no Salesforce account for these campaigns; the client was read from the campaign name."
+            >
+              name match
+            </span>
+          )}
         </div>
         {/* Summed stats on the right */}
         <div className="hidden items-center gap-4 text-xs sm:flex">
@@ -215,6 +248,9 @@ function ClientSection({ group }: { group: ClientGroup }) {
                     >
                       {c.name}
                     </Link>
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      {c.workspaceName}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
@@ -294,17 +330,13 @@ function PlatformClientList({
 
   const { filtered, uncategorized } = useMemo(() => {
     let groups = clientGroups;
-    // Uncategorized: not in CRM, and has at least one non-terminal campaign
-    const uncatGroups = groups.filter((g) => {
-      if (isActiveClient(g.name)) return false;
-      const hasLiveCampaign = g.campaigns.some((c) => {
-        const s = c.status.toUpperCase();
-        return s === "IN_PROGRESS" || s === "ACTIVE" || s === "PAUSED" || s === "DRAFT" || s === "SCHEDULED";
-      });
-      return hasLiveCampaign;
-    });
+    // Uncategorized: not an active client by either source, and has at
+    // least one non-terminal campaign
+    const uncatGroups = groups.filter(
+      (g) => !isActiveGroup(g) && !g.offboarded && g.live
+    );
     if (activeOnly) {
-      groups = groups.filter((g) => isActiveClient(g.name));
+      groups = groups.filter(isActiveGroup);
     }
     if (search) {
       const q = search.toLowerCase();

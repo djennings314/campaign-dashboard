@@ -98,8 +98,19 @@ export interface UnifiedCampaign {
   id: string;          // prefixed: "hr_123" or "sl_456"
   platformId: number;
   platform: Platform;
+  /** Which workspace's API key reads this campaign (see lib/api/workspaces). */
+  workspace: string;
+  workspaceName: string;
   name: string;
   client: string;
+  /**
+   * "salesforce" when Reply Desk's account map says whose campaign this is;
+   * "name" when the client was parsed from the campaign name.
+   */
+  clientSource: "salesforce" | "name";
+  salesforceAccountId?: string;
+  /** Client Reply Desk has offboarded (cancelled / no longer handled). */
+  offboarded?: boolean;
   status: string;
   createdAt: string;
   category?: CampaignCategory;
@@ -108,6 +119,14 @@ export interface UnifiedCampaign {
 }
 
 export interface DashboardStats {
+  /** Workspaces read, by name. */
+  workspaces: { heyreach: string[]; smartlead: string[] };
+  /** Parts that could not be read; their numbers are missing from the totals. */
+  warnings: string[];
+  /** Abstrakt's own campaigns left out of every number below. */
+  internalExcluded: { heyreach: number; smartlead: number };
+  /** Whether Reply Desk's account map could be read for client attribution. */
+  attribution: boolean;
   // HeyReach aggregate
   heyreach: {
     totalCampaigns: number;
@@ -132,7 +151,6 @@ export interface DashboardStats {
     totalCampaigns: number;
     campaignsByStatus: Record<string, number>; // ACTIVE: 195, PAUSED: 83, etc.
     overallStats: SmartleadOverallStats;
-    activeCampaignLeads: number;
     leadCategories: SmartleadLeadCategoryResponse[];
   };
 }

@@ -23,10 +23,10 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">HeyReach API Key</label>
+            <label className="text-sm font-medium">HeyReach API Keys</label>
             <Input
               type="password"
-              placeholder="Set via HEYREACH_API_KEY env var"
+              placeholder="Sapper: HEYREACH_API_KEY · Outbound: HEYREACH_API_KEY_OUTBOUND"
               disabled
             />
             <p className="text-muted-foreground text-xs">
@@ -34,10 +34,10 @@ export default function SettingsPage() {
             </p>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Smartlead API Key</label>
+            <label className="text-sm font-medium">Smartlead API Keys</label>
             <Input
               type="password"
-              placeholder="Set via SMARTLEAD_API_KEY env var"
+              placeholder="Sapper: SMARTLEAD_API_KEY · Outbound: SMARTLEAD_API_KEY_OUTBOUND"
               disabled
             />
             <p className="text-muted-foreground text-xs">

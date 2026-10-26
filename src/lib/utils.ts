@@ -22,6 +22,9 @@ export function cn(...inputs: ClassValue[]) {
 export function extractClientName(name: string): string {
   let raw: string | null = null;
 
+  // Leading "*" / "**" are status markers some HeyReach campaigns carry.
+  name = name.replace(/^[\s*]+/, "");
+
   // 1. "Client - Campaign Title"
   const spaceDash = name.indexOf(" - ");
   if (spaceDash > 0) raw = name.slice(0, spaceDash).trim();

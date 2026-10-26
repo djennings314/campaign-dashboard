@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Send,
   MessageSquare,
@@ -43,6 +44,20 @@ export default function DashboardPage() {
   const hrStats = stats?.heyreach;
   const slStats = stats?.smartlead;
 
+  // Leads in active Smartlead campaigns, summed as their stats load in the
+  // background (active campaigns are fetched first).
+  const slActive = useMemo(() => {
+    const active = campaigns.filter(
+      (c) => c.platform === "smartlead" && c.status.toUpperCase() === "ACTIVE"
+    );
+    const loaded = active.filter((c) => c.leadStats);
+    return {
+      leads: loaded.reduce((n, c) => n + (c.leadStats?.totalUsers ?? 0), 0),
+      loaded: loaded.length,
+      total: active.length,
+    };
+  }, [campaigns]);
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -64,6 +79,25 @@ export default function DashboardPage() {
           Refresh
         </Button>
       </div>
+
+      {stats && (
+        <p className="text-muted-foreground -mt-6 text-xs">
+          {`Workspaces: HeyReach ${stats.workspaces.heyreach.join(" + ") || "none"}, Smartlead ${stats.workspaces.smartlead.join(" + ") || "none"}. `}
+          {stats.internalExcluded.heyreach + stats.internalExcluded.smartlead > 0 &&
+            `Excludes Abstrakt's own campaigns (${stats.internalExcluded.heyreach} HeyReach, ${stats.internalExcluded.smartlead} Smartlead). `}
+          {stats.attribution
+            ? "Clients come from Reply Desk's Salesforce account map where it knows the campaign."
+            : "Reply Desk is not connected, so clients are read from campaign names."}
+        </p>
+      )}
+
+      {stats && stats.warnings.length > 0 && (
+        <Card className="border-yellow-500 py-3">
+          <CardContent className="text-sm text-yellow-700 dark:text-yellow-400">
+            Some numbers are missing from the totals: {stats.warnings.join("; ")}.
+          </CardContent>
+        </Card>
+      )}
 
       {statsError && (
         <Card className="border-destructive py-3">
@@ -227,7 +261,12 @@ export default function DashboardPage() {
               />
               <StatCard
                 title="Active Campaign Leads"
-                value={fmt(slStats.activeCampaignLeads)}
+                value={fmt(slActive.leads)}
+                subtitle={
+                  slActive.loaded < slActive.total
+                    ? `${slActive.loaded} of ${slActive.total} campaigns loaded`
+                    : `${slActive.total} active campaigns`
+                }
                 icon={Users}
               />
             </div>

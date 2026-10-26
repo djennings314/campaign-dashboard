@@ -67,19 +67,32 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Background-fetch Smartlead stats in throttled batches.
+  // Background-fetch Smartlead stats in throttled batches, one queue per
+  // workspace (each has its own rate limit). Live campaigns go first: the
+  // Outbound workspace alone has thousands of archived ones.
   useEffect(() => {
     if (campaignsLoading) return;
 
-    const slIds = campaignsRef.current
-      .filter((c) => c.platform === "smartlead" && !c.leadStats)
-      .map((c) => c.id);
+    const rank = (status: string) => {
+      const s = status.toUpperCase();
+      if (s === "ACTIVE") return 0;
+      if (s === "PAUSED") return 1;
+      if (s === "ARCHIVED") return 3;
+      return 2;
+    };
+    const queues = new Map<string, string[]>();
+    for (const c of [...campaignsRef.current].sort((a, b) => rank(a.status) - rank(b.status))) {
+      if (c.platform !== "smartlead" || c.leadStats) continue;
+      const q = queues.get(c.workspace) ?? [];
+      q.push(c.id);
+      queues.set(c.workspace, q);
+    }
 
-    if (slIds.length === 0) return;
+    if (queues.size === 0) return;
 
     const controller = new AbortController();
 
-    async function fetchAllStats() {
+    async function fetchAllStats(workspace: string, slIds: string[]) {
       const BATCH = 5;
       const DELAY_MS = 1500;
 
@@ -89,7 +102,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         const batch = slIds.slice(i, i + BATCH);
         try {
           const res = await fetch(
-            `/api/campaigns/batch-stats?ids=${batch.join(",")}`,
+            `/api/campaigns/batch-stats?workspace=${workspace}&ids=${batch.join(",")}`,
             { signal: controller.signal }
           );
           if (!res.ok) continue;
@@ -114,7 +127,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    fetchAllStats();
+    for (const [workspace, ids] of queues) fetchAllStats(workspace, ids);
 
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
