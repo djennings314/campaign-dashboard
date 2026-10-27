@@ -17,7 +17,7 @@ import {
   smartleadWorkspaces,
   type Workspace,
 } from "./workspaces";
-import { getAccountStatuses } from "./aiq";
+import { getAccountStatuses, getCampaignAccounts, campaignKey } from "./aiq";
 import type {
   UnifiedCampaign,
   CampaignCategory,
@@ -28,9 +28,12 @@ import type {
   SmartleadOverallStats,
 } from "@/lib/types";
 import { extractClientName } from "@/lib/utils";
-import { findCanonicalName } from "@/lib/active-clients";
+import { findCanonicalName, isActiveClient } from "@/lib/active-clients";
 
 const DIRECT_MAIL_RE = /direct\s*mail/i;
+
+/** Campaign statuses the Clients page treats as still running or about to. */
+const LIVE_STATUSES = new Set(["IN_PROGRESS", "ACTIVE", "PAUSED", "DRAFT", "SCHEDULED", "STARTING"]);
 
 function categorize(name: string): CampaignCategory {
   return DIRECT_MAIL_RE.test(name) ? "direct-mail" : "email";
@@ -164,6 +167,32 @@ export async function getAllCampaigns(): Promise<CampaignsResult> {
   for (const c of campaigns) {
     const status = c.salesforceAccountId && statuses.get(c.salesforceAccountId);
     if (status) c.accountStatus = status;
+  }
+
+  // Clients still without a status would fall back to the February CRM list
+  // (mostly cancelled since), so ask AIQ about their campaigns by campaign id.
+  // Only those clients: asking about every unmapped campaign would be
+  // thousands of requests, nearly all for archived work.
+  const groups = new Map<string, UnifiedCampaign[]>();
+  for (const c of campaigns) {
+    const key = `${c.platform}|${c.client}`;
+    groups.set(key, [...(groups.get(key) ?? []), c]);
+  }
+  const unresolved = [...groups.values()]
+    .filter(
+      (cs) =>
+        !cs.some((c) => c.accountStatus || c.offboarded) &&
+        (isActiveClient(cs[0].client) ||
+          (cs.some((c) => c.clientSource === "salesforce") &&
+            cs.some((c) => LIVE_STATUSES.has(c.status.toUpperCase()))))
+    )
+    .flat();
+  const byCampaign = await getCampaignAccounts(unresolved);
+  for (const c of unresolved) {
+    const found = byCampaign.get(campaignKey(c.platform, c.platformId));
+    if (!found?.status) continue;
+    c.accountStatus = found.status;
+    c.salesforceAccountId ??= found.salesforceAccountId;
   }
 
   campaigns.sort(
