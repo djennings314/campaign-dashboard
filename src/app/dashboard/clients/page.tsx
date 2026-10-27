@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/table";
 import { useCampaigns } from "@/lib/hooks";
 import type { UnifiedCampaign } from "@/lib/types";
-import { isActiveClient } from "@/lib/active-clients";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,24 +66,22 @@ interface ClientGroup {
   salesforce: boolean;
   /** Reply Desk has offboarded this client. */
   offboarded: boolean;
-  /** At least one campaign that is not finished or stopped. */
-  live: boolean;
+  /** At least one campaign sending right now. */
+  running: boolean;
   /** Salesforce status: "Active" if any of its accounts is; null if unknown. */
   accountStatus: string | null;
 }
 
-const LIVE_STATUSES = new Set(["IN_PROGRESS", "ACTIVE", "PAUSED", "DRAFT", "SCHEDULED", "STARTING"]);
+const RUNNING_STATUSES = new Set(["IN_PROGRESS", "ACTIVE", "STARTING"]);
 
 /**
- * Shown under "Active clients". Salesforce decides when it has a status for
- * the client: Active only (Canceled and On Hold are not). Otherwise the old
- * guess: on the CRM list, or tied to a Salesforce account by Reply Desk and
- * still running something. Offboarded never.
+ * Shown under "Active clients": Salesforce says Active (Canceled and On Hold
+ * are not), or the account was confirmed by hand. A client with no known
+ * status is not assumed active: the February CRM list that used to decide
+ * this named dozens of clients cancelled since. Offboarded never.
  */
 function isActiveGroup(g: ClientGroup): boolean {
-  if (g.offboarded) return false;
-  if (g.accountStatus) return g.accountStatus === "Active";
-  return isActiveClient(g.name) || (g.salesforce && g.live);
+  return !g.offboarded && g.accountStatus === "Active";
 }
 
 function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
@@ -125,7 +122,7 @@ function buildClientGroups(campaigns: UnifiedCampaign[]): ClientGroup[] {
       totalFinished,
       salesforce: cList.some((c) => c.clientSource === "salesforce"),
       offboarded: cList.some((c) => c.offboarded),
-      live: cList.some((c) => LIVE_STATUSES.has(c.status.toUpperCase())),
+      running: cList.some((c) => RUNNING_STATUSES.has(c.status.toUpperCase())),
       accountStatus: cList.some((c) => c.accountStatus === "Active")
         ? "Active"
         : cList.find((c) => c.accountStatus)?.accountStatus ?? null,
@@ -346,10 +343,10 @@ function PlatformClientList({
 
   const { filtered, uncategorized } = useMemo(() => {
     let groups = clientGroups;
-    // Uncategorized: status unknown, not an active client by the fallback
-    // guess, and has at least one non-terminal campaign
+    // Uncategorized: no Salesforce status, but something is sending right
+    // now, so someone should say whose it is. Paused leftovers do not count.
     const uncatGroups = groups.filter(
-      (g) => !isActiveGroup(g) && !g.offboarded && !g.accountStatus && g.live
+      (g) => !g.offboarded && !g.accountStatus && g.running
     );
     if (activeOnly) {
       groups = groups.filter(isActiveGroup);

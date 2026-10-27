@@ -28,7 +28,7 @@ import type {
   SmartleadOverallStats,
 } from "@/lib/types";
 import { extractClientName } from "@/lib/utils";
-import { findCanonicalName, isActiveClient } from "@/lib/active-clients";
+import { findCanonicalName, isActiveClient, CONFIRMED_ACCOUNTS } from "@/lib/active-clients";
 
 const DIRECT_MAIL_RE = /direct\s*mail/i;
 
@@ -161,6 +161,10 @@ export async function getAllCampaigns(): Promise<CampaignsResult> {
     }
   });
 
+  for (const c of campaigns) {
+    c.salesforceAccountId ??= CONFIRMED_ACCOUNTS[c.client.toLowerCase().trim()];
+  }
+
   const statuses = await getAccountStatuses(
     campaigns.map((c) => c.salesforceAccountId).filter((id): id is string => !!id)
   );
@@ -169,10 +173,11 @@ export async function getAllCampaigns(): Promise<CampaignsResult> {
     if (status) c.accountStatus = status;
   }
 
-  // Clients still without a status would fall back to the February CRM list
-  // (mostly cancelled since), so ask AIQ about their campaigns by campaign id.
-  // Only those clients: asking about every unmapped campaign would be
-  // thousands of requests, nearly all for archived work.
+  // Clients still without a status: ask AIQ about their campaigns by campaign
+  // id. Only clients on the February CRM list or with something live, and
+  // only their live campaigns where they have any (one answer settles the
+  // client): asking about every unmapped campaign would be thousands of
+  // requests, nearly all for archived work.
   const groups = new Map<string, UnifiedCampaign[]>();
   for (const c of campaigns) {
     const key = `${c.platform}|${c.client}`;
@@ -183,16 +188,26 @@ export async function getAllCampaigns(): Promise<CampaignsResult> {
       (cs) =>
         !cs.some((c) => c.accountStatus || c.offboarded) &&
         (isActiveClient(cs[0].client) ||
-          (cs.some((c) => c.clientSource === "salesforce") &&
-            cs.some((c) => LIVE_STATUSES.has(c.status.toUpperCase()))))
+          cs.some((c) => LIVE_STATUSES.has(c.status.toUpperCase())))
     )
-    .flat();
+    .flatMap((cs) => {
+      const live = cs.filter((c) => LIVE_STATUSES.has(c.status.toUpperCase()));
+      return live.length ? live : cs;
+    });
   const byCampaign = await getCampaignAccounts(unresolved);
   for (const c of unresolved) {
     const found = byCampaign.get(campaignKey(c.platform, c.platformId));
     if (!found?.status) continue;
     c.accountStatus = found.status;
     c.salesforceAccountId ??= found.salesforceAccountId;
+  }
+
+  // Hand-confirmed accounts AIQ has no record of (DOTec Engineering) are Active.
+  const confirmed = new Set(Object.values(CONFIRMED_ACCOUNTS));
+  for (const c of campaigns) {
+    if (!c.accountStatus && c.salesforceAccountId && confirmed.has(c.salesforceAccountId)) {
+      c.accountStatus = "Active";
+    }
   }
 
   campaigns.sort(

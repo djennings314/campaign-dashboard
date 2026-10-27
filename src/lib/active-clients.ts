@@ -1,7 +1,9 @@
 /**
  * Active client names from CRM export (Status = "Active" only).
- * Used to filter the Clients page — showing all campaigns (including finished)
- * for active clients while hiding inactive/cancelled client noise.
+ * Now only a spelling list: it groups campaign-name variants under one client
+ * and picks which clients to look up in AIQ. It no longer decides who is
+ * active (Salesforce status does); many of these names have been cancelled
+ * since.
  *
  * Last updated: 2026-02-23
  */
@@ -196,6 +198,21 @@ const ALIASES: Record<string, string> = {
   "fastech solutions": "Fastech Solutions OR/WA",
   "fastech solutions 2": "Fastech Solutions OR/WA",
   "fastech or/wa": "Fastech Solutions OR/WA",
+};
+
+/**
+ * Salesforce accounts confirmed by hand for clients the dashboard cannot place
+ * on its own: Reply Desk's map does not know their campaigns and AIQ has no
+ * record of them. Keys are the client name as the dashboard shows it,
+ * lowercased; values are 15-character Salesforce ids. A confirmed account
+ * counts as Active unless AIQ says otherwise. Confirmed 2026-10-27.
+ */
+export const CONFIRMED_ACCOUNTS: Record<string, string> = {
+  "dotec engineering": "001Ro00000qDiGb",
+  "enlightened power": "0014w00003d2Mug",
+  "fox pest control harrisburg (john sutton/paul weitzel)": "001Ro00000ZWUyD",
+  "wa campion": "001Rj00000mnabO",
+  "showalter roofing services inc.": "0014w00003d23bK",
 };
 
 /**
